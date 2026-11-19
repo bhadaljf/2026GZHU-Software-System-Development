@@ -26,6 +26,8 @@
 │  ├─ report/          统计与报表（4 号）
 │  └─ export/          导出（4 号）
 ├─ interface/          网页界面：index.html + js/ + css/（6 号）
+├─ scripts/            开发辅助脚本：PR 间冲突检查（1 号）
+├─ .github/workflows/  PR 冲突检查（1 号）
 ├─ data/small/         小数据集（2 号，入库）
 ├─ data/large/         15 万规模数据（2 号，不入库，按配置重生成）
 ├─ test/cases/         用例与人工预期（5 号）

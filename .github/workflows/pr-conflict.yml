@@ -1,0 +1,70 @@
+name: PR 冲突检查
+
+# GitHub 只提示“当前 PR 与 base”的冲突；本 workflow 额外检查多个开放 PR 之间的相互冲突。
+# 结果写进步骤摘要，并在当前 PR 下留言；只提示不阻断，合并与否仍由人工判断。
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-conflict-${{ github.event.pull_request.number || 'manual' }}
+  cancel-in-progress: true
+
+jobs:
+  pairwise:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 抓取全部分支与 PR head
+        run: |
+          git fetch --no-tags origin \
+            '+refs/heads/*:refs/remotes/origin/*' \
+            '+refs/pull/*/head:refs/pr/*'
+
+      - name: 生成检查报告
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          code=0
+          if [ -n "$PR_NUMBER" ]; then
+            python3 scripts/check_pr_conflicts.py --gh --base "origin/$BASE_REF" \
+              --focus "$PR_NUMBER" --markdown conflict-report.md || code=$?
+          else
+            python3 scripts/check_pr_conflicts.py --gh --base "origin/$BASE_REF" \
+              --markdown conflict-report.md || code=$?
+          fi
+
+          if [ -s conflict-report.md ]; then
+            cat conflict-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ "$code" = "1" ]; then
+            echo "::warning::检测到开放 PR 之间的文本冲突，详见步骤摘要"
+          elif [ "$code" != "0" ]; then
+            echo "::error::冲突检查运行失败，退出码 $code"
+            exit "$code"
+          fi
+
+      - name: 在当前 PR 留言
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ ! -s conflict-report.md ]; then
+            echo "报告为空，跳过留言"
+            exit 0
+          fi
+          gh pr comment "$PR_NUMBER" --body-file conflict-report.md

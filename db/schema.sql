@@ -1,0 +1,4 @@
+-- 主数据与计划表结构，2 号维护（第 1 周）
+-- 字段以 docs/00_契约.md 为准；本文件为唯一建库入口。
+-- 待填：middle_school / high_school / student / plan / quota_plan
+--       self_recruit_eligibility / volunteer / run

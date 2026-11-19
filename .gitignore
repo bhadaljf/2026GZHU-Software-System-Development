@@ -1,0 +1,28 @@
+# 数据与产物
+data/large/*
+!data/large/.gitkeep
+export/*.csv
+test/report/*.json
+demo/*.mp4
+demo/*.mov
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Node
+node_modules/
+
+# 编辑器与系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 密钥与个人信息
+.env
+*.key

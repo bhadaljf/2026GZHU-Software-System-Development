@@ -1,4 +1,12 @@
--- 主数据与计划表结构，2 号维护（第 1 周）
--- 字段以 docs/00_契约.md 为准；本文件为唯一建库入口。
--- 待填：middle_school / high_school / student / plan / quota_plan
---       self_recruit_eligibility / volunteer / run
+-- 主数据与计划表结构，2 号维护
+-- 字段以 docs/00_契约.md 为准。
+--
+-- 建库顺序（src/store.init_db 按此执行，缺一项即报错）：
+--   1) db/schema.sql          主数据与计划表（2 号）
+--   2) db/schema_run.sql      run 表（1 号，见 src/run_meta.ensure_schema）
+--   3) db/schema_log.sql      结果、日志与结转流水（3 号）
+--
+-- 本文件只放主数据与计划：
+--   middle_school / high_school / student / plan / quota_plan
+--   self_recruit_eligibility / volunteer
+-- run 表不在此处定义，避免两份 DDL 漂移。

@@ -8,18 +8,22 @@
 
 ```
 .
-├─ config/             规则参数（年度、G₁、Δ、L、随机种子）
-├─ db/                 schema.sql / schema_log.sql / seed_small.sql
+├─ config/             规则参数 rules.toml（年度、G₁、Δ、L、随机种子）
+├─ db/                 schema.sql（主数据）/ schema_run.sql（run 表）/ schema_log.sql（结果与日志）/ seed_small.sql
 ├─ src/                业务代码
+│  ├─ config.py        规则参数读取与校验（1 号）
+│  ├─ run_meta.py      运行快照元数据（1 号）
+│  ├─ check_metrics.py 结果审计：口径与守恒（1 号）
+│  ├─ types.py         公共数据结构（2 号）
 │  ├─ gen_data.py      两档数据生成（2 号）
 │  ├─ validate.py      导入校验（2 号）
-│  ├─ run_meta.py      运行快照元数据（1 号）
-│  ├─ check_metrics.py 统计口径自检（1 号）
+│  ├─ store.py         建库、写入与连接（2 号）
+│  ├─ api/             接口网关（6 号）
 │  ├─ engine/          投档引擎（3 号）
 │  ├─ query/           查询接口（4 号）
 │  ├─ report/          统计与报表（4 号）
 │  └─ export/          导出（4 号）
-├─ interface/          操作界面（6 号）
+├─ interface/          网页界面：index.html + js/ + css/（6 号）
 ├─ data/small/         小数据集（2 号，入库）
 ├─ data/large/         15 万规模数据（2 号，不入库，按配置重生成）
 ├─ test/cases/         用例与人工预期（5 号）
@@ -61,6 +65,8 @@
 | 启动 | `uvicorn src.api.main:app` | 一条命令起服务，浏览器打开 127.0.0.1 即用 |
 
 取舍：若后续确需移动端，可把 `interface/` 换成响应式页面或包一层 Capacitor，后端端点不变；若数据量再上一个量级，再把 SQLite 换 PostgreSQL，`src/store.py` 是唯一改动点。
+
+配置格式用 TOML（`config/rules.toml`），由 Python 3.11 标准库 `tomllib` 直接读取，不引入 PyYAML。建库顺序为 `db/schema.sql` → `db/schema_run.sql` → `db/schema_log.sql`，`run` 表只在 `schema_run.sql` 定义一份。
 
 ## 快速开始
 

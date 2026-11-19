@@ -1,0 +1,26 @@
+# 规则参数：一次运行的全部外部输入（1 号维护；冻结后只增字段、不改语义）
+year = 2026
+control_line = 492
+
+[gradient]
+first_line = 712
+delta = 40
+
+[plan_ratio]
+self_recruit_cap = 0.10
+quota_ratio = 0.50
+
+[batch_volunteer_limit]
+batch1 = 1
+batch2 = 3
+batch3 = 6
+batch4 = 6
+
+[data]
+seed = 20261119
+students = 150000
+middle_schools = 500
+high_schools = 150
+
+[run]
+snapshot_prefix = "RUN"

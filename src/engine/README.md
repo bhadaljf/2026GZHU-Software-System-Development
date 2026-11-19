@@ -4,7 +4,7 @@
 
 ## 输入
 - 只读数据集：`plan`、`quota_plan`、`self_recruit_eligibility`、`student`、`volunteer`
-- 规则参数：`config/rules.yaml`
+- 规则参数：`config/rules.toml`
 
 ## 输出
 - `admit_result`：录取结果，字段见契约第 2 节

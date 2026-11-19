@@ -8,7 +8,7 @@
 ## 2 依赖安装
 
 ## 3 数据库初始化
-建库、执行 `db/schema.sql`、装载 `data/small/` 或按 `config/rules.yaml` 生成。
+建库、执行 `db/schema.sql`、装载 `data/small/` 或按 `config/rules.toml` 生成。
 
 ## 4 启动
 

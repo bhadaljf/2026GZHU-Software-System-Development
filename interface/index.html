@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>广州中考公办高中录取模拟</title>
 <link rel="stylesheet" href="css/app.css">
 </head>
@@ -18,47 +19,124 @@
   <span id="status" class="status">未运行</span>
 </header>
 
+<div id="toast" class="toast hidden" role="alert"></div>
+
 <main>
   <section id="page-run" class="page active">
     <h2>运行控制</h2>
     <div class="row">
       <label>数据规模
-        <select id="scale"><option value="small">小数据集</option><option value="large">15 万</option></select>
+        <select id="scale">
+          <option value="small">小数据集</option>
+          <option value="large">15 万</option>
+        </select>
       </label>
-      <button id="btn-run">完整运行</button>
-      <button id="btn-batch3">只跑第三批</button>
+      <label>批次
+        <select id="batch-select">
+          <option value="1">第一批 自主招生</option>
+          <option value="2">第二批 名额分配</option>
+          <option value="3" selected>第三批 统招</option>
+          <option value="4">第四批 统招</option>
+        </select>
+      </label>
+      <button id="btn-create">新建运行</button>
+      <button id="btn-run">完整运行（1—4 批）</button>
+      <button id="btn-batch">执行所选批次</button>
     </div>
-    <p id="run-info">装载数据后开始</p>
-    <table id="balances"><thead><tr><th>批次</th><th>计划数</th><th>已录</th><th>余额</th></tr></thead><tbody></tbody></table>
+    <p id="run-info" class="hint">尚未创建运行。先点“新建运行”，再执行投档。</p>
+    <div class="progress" aria-label="运行进度">
+      <div id="progress-bar" class="progress-bar"></div>
+    </div>
+    <p id="progress-text" class="hint"></p>
+    <h3>各批余额</h3>
+    <table id="balances">
+      <thead><tr><th>批次</th><th>计划数</th><th>已录</th><th>余额</th></tr></thead>
+      <tbody></tbody>
+    </table>
   </section>
 
   <section id="page-student" class="page">
     <h2>考生查询</h2>
-    <div class="row"><input id="sid" placeholder="考生编号，如 S01"><button id="btn-student">查询</button></div>
-    <div id="student-out" class="card"></div>
+    <div class="row">
+      <input id="sid" placeholder="考生编号，如 S01">
+      <button id="btn-student">查询</button>
+    </div>
+    <div id="student-out" class="card empty">输入考生编号查询去向、各志愿处理与未录原因。</div>
   </section>
 
   <section id="page-plan" class="page">
     <h2>计划与名单</h2>
-    <div class="row"><input id="pid" placeholder="计划编号，如 P-A3"><button id="btn-plan">查询</button></div>
-    <div id="plan-summary" class="card"></div>
-    <table id="plan-rows"><thead><tr><th>顺序</th><th>考生</th><th>总分</th><th>志愿序号</th></tr></thead><tbody></tbody></table>
-    <div class="row"><button id="prev">上一页</button><span id="page-info"></span><button id="next">下一页</button></div>
+    <div class="row">
+      <input id="pid" placeholder="计划编号，如 P-A3">
+      <button id="btn-plan">查询</button>
+      <label>每页
+        <select id="page-size">
+          <option value="20">20</option>
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+        </select>
+        条
+      </label>
+    </div>
+    <div id="plan-summary" class="card empty">输入计划编号查询名单、余额、最低分与末位考生。</div>
+    <table id="plan-rows">
+      <thead><tr><th>录取顺序</th><th>考生</th><th>总分</th><th>志愿序号</th><th>同分序号</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="row pager">
+      <button id="prev">上一页</button>
+      <span id="page-info" class="hint"></span>
+      <button id="next">下一页</button>
+    </div>
   </section>
 
   <section id="page-stats" class="page">
     <h2>统计</h2>
     <div class="row">
-      <label>批次 <select id="stat-batch"><option>1</option><option>2</option><option selected>3</option><option>4</option></select></label>
-      <button id="btn-stats">查询</button>
+      <label>批次
+        <select id="stat-batch">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="4">4</option>
+        </select>
+      </label>
+      <button id="btn-stats">查询批次统计</button>
+      <button id="btn-dist">查询分数分布</button>
+      <button id="btn-export">导出录取 CSV</button>
     </div>
-    <div id="stats-out" class="card"></div>
+    <div id="stats-out" class="card empty">选择批次后查询计划数、录取数、完成率与未录取人数。</div>
+    <div class="row">
+      <input id="school-id" placeholder="学校编号，如 H-A">
+      <button id="btn-school">查询学校统计</button>
+    </div>
+    <div id="school-out" class="card empty">输入学校编号查询该校总体统计。</div>
+    <h3>分数分布</h3>
+    <table id="distribution">
+      <thead><tr><th>分数段</th><th>人数</th></tr></thead>
+      <tbody></tbody>
+    </table>
   </section>
 
   <section id="page-case" class="page">
     <h2>案例对比</h2>
-    <p class="hint">滑档案例：同一考生调整志愿前后两次运行的对比，数据来自 demo/cases/。</p>
-    <div id="case-out" class="card">待 5 号提供案例数据后接入</div>
+    <p class="hint">同一考生调整志愿前后两次运行的对比。mock 模式用 RUN20261121-01 / RUN20261121-02；真实模式由 5 号提供两次运行的 run_id。</p>
+    <div class="row">
+      <input id="case-sid" placeholder="考生编号" value="S01">
+      <input id="case-before" placeholder="调整前 run_id" value="RUN20261121-01">
+      <input id="case-after" placeholder="调整后 run_id" value="RUN20261121-02">
+      <button id="btn-case">对比</button>
+    </div>
+    <div class="case-grid">
+      <div class="card">
+        <h3>调整前</h3>
+        <div id="case-before-out" class="empty">尚未对比。</div>
+      </div>
+      <div class="card">
+        <h3>调整后</h3>
+        <div id="case-after-out" class="empty">尚未对比。</div>
+      </div>
+    </div>
   </section>
 </main>
 

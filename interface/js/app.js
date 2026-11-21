@@ -43,8 +43,26 @@ document.querySelectorAll('#nav button').forEach(btn => {
   });
 });
 
+const BALANCE_COLS = [
+  { key: 'batch', fmt: r => renderScore(r.batch) },
+  { key: 'quota', fmt: r => renderScore(r.quota) },
+  { key: 'admitted', fmt: r => renderScore(r.admitted) },
+  { key: 'remaining', fmt: r => renderScore(r.remaining) },
+];
+
+const DIST_COLS = [
+  { key: 'label', fmt: r => String(r.label ?? '') },
+  { key: 'count', fmt: r => String(r.count ?? '') },
+];
+
 async function boot() {
-  if (state.runId) setStatus(`运行 ${state.runId}`);
+  if (state.runId) {
+    setStatus(`运行 ${state.runId}`);
+    $('#run-info').textContent = `当前运行 ${state.runId}`;
+  }
+  renderProgress($('#progress-bar'), $('#progress-text'), { stage: 'idle', done: 0, total: 0 });
+  renderRows($('#balances tbody'), [], BALANCE_COLS);
+  renderRows($('#distribution tbody'), [], DIST_COLS);
   try {
     state.reasons = await API.get('/api/reasons');
   } catch (err) {
@@ -64,12 +82,7 @@ async function createRun() {
 }
 
 function renderBalances(balances) {
-  renderRows($('#balances tbody'), balances || [], [
-    { key: 'batch', fmt: r => renderScore(r.batch) },
-    { key: 'quota', fmt: r => renderScore(r.quota) },
-    { key: 'admitted', fmt: r => renderScore(r.admitted) },
-    { key: 'remaining', fmt: r => renderScore(r.remaining) },
-  ]);
+  renderRows($('#balances tbody'), balances || [], BALANCE_COLS);
 }
 
 async function pollProgress() {

@@ -1,120 +1,101 @@
-from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
-import json
+# src/types.py
+# 维护人：2号 W1
+# 依据：docs/00_契约.md v0.9，docs/01_需求与规则清单.md v1.0
+from dataclasses import dataclass # 导入数据类装饰器
+from typing import Optional, List # 导入类型提示
+
+
+@dataclass
+class Issue:
+    """校验异常对象 R39"""
+    level: str # "error"严重错误｜"warn"警告
+    table: str # 出错表名
+    key: str # 出错记录主键字符串
+    message: str # 错误描述，附带R编号
+
+
+@dataclass
+class MiddleSchool:
+    """初中实体"""
+    school_id: str # 初中唯一ID
+    name: str # 初中名称
+    district: str # 行政区
+
+
+@dataclass
+class HighSchool:
+    """高中实体 R6"""
+    school_id: str # 高中唯一ID
+    name: str # 高中名称
+    type: str # 学校类型示范/普通
+    recruit_batch: int # 统招接收批次，只能3/4 R6
 
 
 @dataclass
 class Student:
     """考生实体"""
-    student_id: str        # 考生唯一编号
-    name: str              # 考生姓名
-    junior_school_id: str  # 所属初中编号
-    total_score: int       # 中考总分
-    same_rank_no: int      # 同分序号：总分相同的学生内部排序编号，同总分内唯一
+    student_id: str # 考生编号
+    name: str # 考生姓名
+    junior_school_id: str # 所属初中ID R23
+    score: int # 中考总分唯一投档依据 R3
+    tie_seq: int # 同分序号，越小越优先 R16/R39
 
 
 @dataclass
-class JuniorSchool:
-    """初中学校实体"""
-    school_id: str  # 初中编号
-    name: str       # 初中名称
+class Plan:
+    """招生计划实体"""
+    plan_id: str # 计划唯一ID
+    year: int # 模拟年度
+    high_school_id: str # 归属高中ID
+    batch: int # 批次1‑4
+    category: str # self_recruit/quota/unified
+    quota: int # 初始名额 R5
+    control_line: int # 计划控制线≥492 R10
+    remaining: int # 当前剩余名额冗余字段 R29
 
 
 @dataclass
-class SeniorSchool:
-    """高中学校实体"""
-    school_id: str         # 高中编号
-    name: str              # 高中名称
-    batch_list: List[int]  # 该高中参与招生的批次，例如只参加第四批就是 [4]
+class QuotaPlan:
+    """名额分配子计划 R22"""
+    plan_id: str # 主计划ID外键
+    junior_school_id: str # 初中ID外键
+    quota: int # 分配到此初中名额
 
 
 @dataclass
-class SelfRecruitQualify:
-    """自主招生资格：考生获得某高中自招入围资格"""
-    student_id: str        # 考生编号
-    senior_school_id: str  # 高中编号
-    rank: int              # 校内自招考核排名
-
-
-@dataclass
-class AdmissionPlan:
-    """招生计划：一条招生名额记录（统招/名额分配/自招）"""
-    plan_id: str                # 计划唯一ID
-    year: int                   # 招生年份
-    senior_school_id: str       # 高中编号
-    junior_school_id: Optional[str] # 名额分配才绑定初中；统招、自招填 None
-    batch: int                  # 招生批次
-    category: str               # 计划类型："自主招生" / "名额分配" / "统招"
-    initial_quota: int          # 初始名额总数
-    current_remain: int         # 当前剩余名额（冗余字段，方便投档逻辑）
-    control_line: int           # 该计划分数线/控制线
+class SelfRecruitEligibility:
+    """自招资格记录 R20"""
+    student_id: str # 考生ID
+    high_school_id: str # 高中ID
+    status: str # 资格状态ok/invalid
+    rank: int # 校内考核排名 R21
 
 
 @dataclass
 class Volunteer:
-    """考生志愿"""
-    year: int         # 招生年份
-    student_id: str   # 考生编号
-    plan_id: str      # 对应招生计划ID
-    batch: int        # 志愿所属批次
-    vol_no: int       # 志愿序号：同一个考生、同一个批次内志愿序号不能重复
-
-
-@dataclass
-class CarryOverLog:
-    """名额结转日志：名额从本批次流转到下一批次的记录"""
-    run_id: str             # 本次模拟运行ID
-    source_batch: int       # 源批次
-    target_batch: int       # 转入目标批次
-    senior_school_id: str   # 高中编号
-    from_junior_id: Optional[str] # 原绑定初中（名额分配结转才有效）
-    transfer_count: int     # 结转名额数量
-    transfer_time: str      # 结转时间
-
-
-@dataclass
-class AdmissionLog:
-    """投档录取单条日志"""
-    run_id: str        # 本次模拟运行ID
-    student_id: str    # 考生编号
-    plan_id: str       # 录取到的招生计划
-    result_code: str   # 结果码：录取/退档/滑档等标记
-    remark: str        # 备注说明
-    remain_before: int # 投档前计划剩余名额
-    remain_after: int  # 投档后计划剩余名额
-
-
-@dataclass
-class Issue:
-    """数据校验异常信息"""
-    level: str    # 级别：ERROR 错误 / WARN 警告
-    msg: str      # 异常描述文本
-    entity_type: str # 出错实体类型 student / volunteer / plan
-    entity_id: str   # 出错实体ID
+    """考生志愿 R7"""
+    year: int # 模拟年度
+    student_id: str # 考生ID
+    batch: int # 志愿批次
+    seq: int # 志愿序号从1开始
+    plan_id: str # 报考计划ID
 
 
 @dataclass
 class Dataset:
-    """整套输入数据集，一次模拟的全部原始数据"""
-    year: int
-    seed: int                     # 随机种子，保证复现
-    junior_schools: List[JuniorSchool]
-    senior_schools: List[SeniorSchool]
-    students: List[Student]
-    self_recruit_list: List[SelfRecruitQualify]
-    plan_list: List[AdmissionPlan]
-    volunteer_list: List[Volunteer]
+    """完整内存数据集 R8"""
+    middle_schools: List[MiddleSchool] # 初中集合
+    high_schools: List[HighSchool] # 高中集合
+    students: List[Student] # 考生集合
+    plans: List[Plan] # 招生计划集合
+    quota_plans: List[QuotaPlan] # 名额分配子计划集合
+    self_recruit_eligibilities: List[SelfRecruitEligibility] #自招资格集合
+    volunteers: List[Volunteer] #志愿集合
+    data_version: str #数据集版本标记
+    seed: Optional[int] = None #随机种子，保证复现 R8
 
 
 @dataclass
 class RunOutput:
-    """模拟运行输出结果包"""
-    dataset: Dataset
-    admit_logs: List[AdmissionLog]
-    carry_logs: List[CarryOverLog]
-    issues: List[Issue]
-
-
-def to_json(obj):
-    """dataclass 对象转JSON,调试、打印输出用"""
-    return json.dumps(obj, default=lambda o: o.__dict__, ensure_ascii=False, indent=2)
+    """引擎输出占位,业务归3号"""
+    run_id: str #运行唯一编号

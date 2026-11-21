@@ -37,7 +37,7 @@ def validate(dataset: Dataset) -> List[Issue]:
         if hs.recruit_batch not in (3, 4): # 判断接收批次非法 R6
             issues.append(Issue( #追加错误
                 level="error", table="high_school", key=hs.school_id,
-                message=f"recruit_batch={hs.recruit_batch}, 只能为3或4（R6）"
+                message=f"recruit_batch={hs.recruit_batch}, 只能为3或4(R6)"
             ))
 
     high_recruit_map: Dict[str, int] = {h.school_id: h.recruit_batch for h in dataset.high_schools} #构建高中‑接收批次映射
@@ -46,24 +46,24 @@ def validate(dataset: Dataset) -> List[Issue]:
         if rt == 4 and p.batch in (1, 2): #4批高中禁止1/2批计划 R6
             issues.append(Issue(
                 level="error", table="plan", key=p.plan_id,
-                message=f"该高中recruit_batch=4，禁止batch={p.batch}计划（R6）"
+                message=f"该高中recruit_batch=4,禁止batch={p.batch}计划(R6)"
             ))
         if p.control_line < 492: #计划控制线小于最低线L R10
             issues.append(Issue(
                 level="error", table="plan", key=p.plan_id,
-                message=f"计划控制线{p.control_line}，不得小于L=492（R10）"
+                message=f"计划控制线{p.control_line},不得小于L=492(R10)"
             ))
         if p.quota < 0 or p.remaining < 0: #计划名额超额/负数
             issues.append(Issue(
                 level="error", table="plan", key=p.plan_id,
-                message=f"计划名额非法，quota={p.quota}, remaining={p.remaining}"
+                message=f"计划名额非法,quota={p.quota}, remaining={p.remaining}"
             ))
 
     for st in dataset.students: #遍历考生校验分数
         if not (0 <= st.score <= 750): #分数越界判断 R39
             issues.append(Issue(
                 level="error", table="student", key=st.student_id,
-                message=f"非法分数score={st.score}（R39）"
+                message=f"非法分数score={st.score}(R39)"
             ))
 
     seen_score_tie = set() #集合存储已经出现过的(分数,同分序号)
@@ -72,7 +72,7 @@ def validate(dataset: Dataset) -> List[Issue]:
         if key in seen_score_tie: #检测重复 R39
             issues.append(Issue(
                 level="error", table="student", key=st.student_id,
-                message=f"同总分{st.score}下重复tie_seq={st.tie_seq}（R39）"
+                message=f"同总分{st.score}下重复tie_seq={st.tie_seq}(R39)"
             ))
         seen_score_tie.add(key) #加入已看见集合
 
@@ -100,7 +100,7 @@ def validate(dataset: Dataset) -> List[Issue]:
         if vk in seen_volunteer_key:
             issues.append(Issue(
                 level="error", table="volunteer", key=f"{v.year},{v.student_id},{v.batch},{v.seq}",
-                message=f"重复志愿记录（year,student_id,batch,seq）"
+                message=f"重复志愿记录(year,student_id,batch,seq)"
             ))
         seen_volunteer_key.add(vk)
 

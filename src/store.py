@@ -14,7 +14,11 @@ def connect(db_path: str) -> sqlite3.Connection:
 
 
 def init_db(db_path: str, schema_path: str = "db/schema.sql") -> None:
-    """初始化数据库,只加载主表schema;run/log schema由1/3号负责"""
+    """初始化数据库,只加载主表schema
+    ⚠【W1警告】本函数会直接删除整个db文件!
+    包含run/log运行结果的数据库严禁调用此函数,只用于全新初始化！
+    run/log表由1号、3号脚本分别执行schema_run.sql、schema_log.sql
+    """
     if os.path.exists(db_path): #判断库文件是否已经存在
         os.remove(db_path) #删除旧数据库文件
     conn = connect(db_path) #新建连接

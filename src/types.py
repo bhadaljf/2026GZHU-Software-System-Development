@@ -97,5 +97,11 @@ class Dataset:
 
 @dataclass
 class RunOutput:
-    """引擎输出占位,业务归3号"""
-    run_id: str #运行唯一编号
+    """引擎输出,业务归3号;store.py消费该对象写入数据库"""
+    run_id: str  #运行唯一编号
+    issues: List[Issue]
+    modified_plans: List[Plan]
+    admit_result_rows: List[dict]
+    admit_log_rows: List[dict]
+    carry_log_rows: List[dict]
+

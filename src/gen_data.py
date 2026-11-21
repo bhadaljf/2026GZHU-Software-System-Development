@@ -11,6 +11,7 @@
 """
 # W1 2号成员；W1：small完整实现；large=15万仅首版骨架，W2完成内部逻辑
 import random #导入随机数模块
+from typing import List #导入类型提示
 from src.types import (Dataset, MiddleSchool, HighSchool, Student,
                        Plan, QuotaPlan, SelfRecruitEligibility, Volunteer) #导入全部数据类
 

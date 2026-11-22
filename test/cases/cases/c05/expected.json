@@ -1,0 +1,204 @@
+{
+  "case_id": "c05",
+  "params": {
+    "L": 600,
+    "G1": 720,
+    "delta": 40
+  },
+  "expected_admissions": [
+    {
+      "student_id": "S18",
+      "plan_id": "A-Z1",
+      "batch": 1,
+      "vol_seq": 1,
+      "admit_order": 1
+    },
+    {
+      "student_id": "S20",
+      "plan_id": "B-Z1",
+      "batch": 1,
+      "vol_seq": 1,
+      "admit_order": 2
+    }
+  ],
+  "expected_balances": [
+    {
+      "plan_id": "A-Z1",
+      "initial": 1,
+      "carry_in": 0,
+      "carry_out": 0,
+      "admitted": 1,
+      "remaining": 0
+    },
+    {
+      "plan_id": "A-Q-J1",
+      "initial": 3,
+      "carry_in": 0,
+      "carry_out": 3,
+      "admitted": 0,
+      "remaining": 0
+    },
+    {
+      "plan_id": "A-Q-J2",
+      "initial": 2,
+      "carry_in": 0,
+      "carry_out": 2,
+      "admitted": 0,
+      "remaining": 0
+    },
+    {
+      "plan_id": "A-T",
+      "initial": 4,
+      "carry_in": 5,
+      "carry_out": 0,
+      "admitted": 0,
+      "remaining": 9
+    },
+    {
+      "plan_id": "B-Z1",
+      "initial": 1,
+      "carry_in": 0,
+      "carry_out": 0,
+      "admitted": 1,
+      "remaining": 0
+    },
+    {
+      "plan_id": "B-Q-J1",
+      "initial": 2,
+      "carry_in": 0,
+      "carry_out": 2,
+      "admitted": 0,
+      "remaining": 0
+    },
+    {
+      "plan_id": "B-Q-J2",
+      "initial": 3,
+      "carry_in": 0,
+      "carry_out": 3,
+      "admitted": 0,
+      "remaining": 0
+    },
+    {
+      "plan_id": "B-T",
+      "initial": 4,
+      "carry_in": 5,
+      "carry_out": 0,
+      "admitted": 0,
+      "remaining": 9
+    },
+    {
+      "plan_id": "C-T",
+      "initial": 1,
+      "carry_in": 0,
+      "carry_out": 0,
+      "admitted": 0,
+      "remaining": 1
+    },
+    {
+      "plan_id": "D-T",
+      "initial": 1,
+      "carry_in": 0,
+      "carry_out": 0,
+      "admitted": 0,
+      "remaining": 1
+    }
+  ],
+  "expected_stats": [
+    {
+      "plan_id": "A-Z1",
+      "min_score": 710,
+      "last_student": "S18",
+      "last_score": 710,
+      "last_vol_seq": 1
+    },
+    {
+      "plan_id": "A-Q-J1",
+      "min_score": "无",
+      "last_student": "无",
+      "last_score": "无",
+      "last_vol_seq": null
+    },
+    {
+      "plan_id": "A-Q-J2",
+      "min_score": "无",
+      "last_student": "无",
+      "last_score": "无",
+      "last_vol_seq": null
+    },
+    {
+      "plan_id": "A-T",
+      "min_score": "无",
+      "last_student": "无",
+      "last_score": "无",
+      "last_vol_seq": null
+    },
+    {
+      "plan_id": "B-Z1",
+      "min_score": 680,
+      "last_student": "S20",
+      "last_score": 680,
+      "last_vol_seq": 1
+    },
+    {
+      "plan_id": "B-Q-J1",
+      "min_score": "无",
+      "last_student": "无",
+      "last_score": "无",
+      "last_vol_seq": null
+    },
+    {
+      "plan_id": "B-Q-J2",
+      "min_score": "无",
+      "last_student": "无",
+      "last_score": "无",
+      "last_vol_seq": null
+    },
+    {
+      "plan_id": "B-T",
+      "min_score": "无",
+      "last_student": "无",
+      "last_score": "无",
+      "last_vol_seq": null
+    },
+    {
+      "plan_id": "C-T",
+      "min_score": "无",
+      "last_student": "无",
+      "last_score": "无",
+      "last_vol_seq": null
+    },
+    {
+      "plan_id": "D-T",
+      "min_score": "无",
+      "last_student": "无",
+      "last_score": "无",
+      "last_vol_seq": null
+    }
+  ],
+  "expected_reasons": [
+    {
+      "student_id": "S03",
+      "reason_code": "RANK_BEYOND_QUOTA"
+    },
+    {
+      "student_id": "S04",
+      "reason_code": "NOT_IN_QUALIFICATION"
+    },
+    {
+      "student_id": "S07",
+      "reason_code": "NOT_IN_QUALIFICATION"
+    },
+    {
+      "student_id": "S10",
+      "reason_code": "BELOW_PLAN_CONTROL"
+    },
+    {
+      "student_id": "S11",
+      "reason_code": "RANK_BEYOND_QUOTA"
+    },
+    {
+      "student_id": "S15",
+      "reason_code": "BELOW_PLAN_CONTROL"
+    }
+  ]
+}

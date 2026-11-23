@@ -1,0 +1,193 @@
+{
+  "case_id": "c10",
+  "params": {
+    "L": 600,
+    "G1": 720,
+    "delta": 40
+  },
+  "expected_admissions": [
+    {
+      "student_id": "S01",
+      "plan_id": "D-T",
+      "batch": 3,
+      "vol_seq": 1,
+      "admit_order": 1
+    },
+    {
+      "student_id": "S04",
+      "plan_id": "A-T",
+      "batch": 3,
+      "vol_seq": 1,
+      "admit_order": 2
+    },
+    {
+      "student_id": "S08",
+      "plan_id": "A-T",
+      "batch": 3,
+      "vol_seq": 1,
+      "admit_order": 3
+    },
+    {
+      "student_id": "S18",
+      "plan_id": "A-T",
+      "batch": 3,
+      "vol_seq": 2,
+      "admit_order": 4
+    }
+  ],
+  "expected_balances": [
+    {
+      "plan_id": "A-Z1",
+      "initial": 1,
+      "carry_in": 0,
+      "carry_out": 1,
+      "admitted": 0,
+      "remaining": 0
+    },
+    {
+      "plan_id": "A-Q-J1",
+      "initial": 3,
+      "carry_in": 0,
+      "carry_out": 3,
+      "admitted": 0,
+      "remaining": 0
+    },
+    {
+      "plan_id": "A-Q-J2",
+      "initial": 2,
+      "carry_in": 0,
+      "carry_out": 2,
+      "admitted": 0,
+      "remaining": 0
+    },
+    {
+      "plan_id": "A-T",
+      "initial": 4,
+      "carry_in": 6,
+      "carry_out": 0,
+      "admitted": 3,
+      "remaining": 7
+    },
+    {
+      "plan_id": "B-Z1",
+      "initial": 1,
+      "carry_in": 0,
+      "carry_out": 1,
+      "admitted": 0,
+      "remaining": 0
+    },
+    {
+      "plan_id": "B-Q-J1",
+      "initial": 2,
+      "carry_in": 0,
+      "carry_out": 2,
+      "admitted": 0,
+      "remaining": 0
+    },
+    {
+      "plan_id": "B-Q-J2",
+      "initial": 3,
+      "carry_in": 0,
+      "carry_out": 3,
+      "admitted": 0,
+      "remaining": 0
+    },
+    {
+      "plan_id": "B-T",
+      "initial": 4,
+      "carry_in": 6,
+      "carry_out": 0,
+      "admitted": 0,
+      "remaining": 10
+    },
+    {
+      "plan_id": "C-T",
+      "initial": 1,
+      "carry_in": 0,
+      "carry_out": 0,
+      "admitted": 0,
+      "remaining": 1
+    },
+    {
+      "plan_id": "D-T",
+      "initial": 1,
+      "carry_in": 0,
+      "carry_out": 0,
+      "admitted": 1,
+      "remaining": 0
+    }
+  ],
+  "expected_stats": [
+    {
+      "plan_id": "A-Z1",
+      "min_score": "无",
+      "last_student": "无",
+      "last_score": "无",
+      "last_vol_seq": null
+    },
+    {
+      "plan_id": "A-Q-J1",
+      "min_score": "无",
+      "last_student": "无",
+      "last_score": "无",
+      "last_vol_seq": null
+    },
+    {
+      "plan_id": "A-Q-J2",
+      "min_score": "无",
+      "last_student": "无",
+      "last_score": "无",
+      "last_vol_seq": null
+    },
+    {
+      "plan_id": "A-T",
+      "min_score": 681,
+      "last_student": "S18",
+      "last_score": 710,
+      "last_vol_seq": 2
+    },
+    {
+      "plan_id": "B-Z1",
+      "min_score": "无",
+      "last_student": "无",
+      "last_score": "无",
+      "last_vol_seq": null
+    },
+    {
+      "plan_id": "B-Q-J1",
+      "min_score": "无",
+      "last_student": "无",
+      "last_score": "无",
+      "last_vol_seq": null
+    },
+    {
+      "plan_id": "B-Q-J2",
+      "min_score": "无",
+      "last_student": "无",
+      "last_score": "无",
+      "last_vol_seq": null
+    },
+    {
+      "plan_id": "B-T",
+      "min_score": "无",
+      "last_student": "无",
+      "last_score": "无",
+      "last_vol_seq": null
+    },
+    {
+      "plan_id": "C-T",
+      "min_score": "无",
+      "last_student": "无",
+      "last_score": "无",
+      "last_vol_seq": null
+    },
+    {
+      "plan_id": "D-T",
+      "min_score": 720,
+      "last_student": "S01",
+      "last_score": 720,
+      "last_vol_seq": 1
+    }
+  ],
+  "expected_reasons": []
+}

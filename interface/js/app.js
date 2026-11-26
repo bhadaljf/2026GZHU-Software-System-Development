@@ -55,6 +55,40 @@ const DIST_COLS = [
   { key: 'count', fmt: r => String(r.count ?? '') },
 ];
 
+const BATCH_PLAN_COLS = [
+  { key: 'plan_id', fmt: r => renderScore(r.plan_id) },
+  { key: 'school', fmt: r => renderScore(r.school) },
+  { key: 'category', fmt: r => renderCategory(r.category) },
+  { key: 'quota_total', fmt: r => renderScore(r.quota_total) },
+  { key: 'admitted_count', fmt: r => renderScore(r.admitted_count) },
+  { key: 'remaining', fmt: r => renderScore(r.remaining) },
+  { key: 'min_score', fmt: r => renderScore(r.min_score) },
+];
+
+function schoolAggCols(labelKey) {
+  return [
+    { key: labelKey, fmt: r => labelKey === 'category' ? renderCategory(r[labelKey]) : renderScore(r[labelKey]) },
+    { key: 'plan_count', fmt: r => renderScore(r.plan_count) },
+    { key: 'quota_total', fmt: r => renderScore(r.quota_total) },
+    { key: 'admitted_count', fmt: r => renderScore(r.admitted_count) },
+    { key: 'completion_rate', fmt: r => formatRate(r.completion_rate, r.completion_rate_text) },
+    { key: 'unfilled_quota', fmt: r => renderScore(r.unfilled_quota) },
+    { key: 'min_score', fmt: r => renderScore(r.min_score) },
+    { key: 'max_score', fmt: r => renderScore(r.max_score) },
+  ];
+}
+
+const SCHOOL_PLAN_COLS = [
+  { key: 'plan_id', fmt: r => renderScore(r.plan_id) },
+  { key: 'batch', fmt: r => renderScore(r.batch) },
+  { key: 'category', fmt: r => renderCategory(r.category) },
+  { key: 'quota_total', fmt: r => renderScore(r.quota_total) },
+  { key: 'admitted_count', fmt: r => renderScore(r.admitted_count) },
+  { key: 'remaining', fmt: r => renderScore(r.remaining) },
+  { key: 'min_score', fmt: r => renderScore(r.min_score) },
+  { key: 'last_admitted', fmt: r => lastAdmittedText(r.last_admitted) },
+];
+
 async function boot() {
   if (state.runId) {
     setStatus(`运行 ${state.runId}`);
@@ -63,6 +97,10 @@ async function boot() {
   renderProgress($('#progress-bar'), $('#progress-text'), { stage: 'idle', done: 0, total: 0 });
   renderRows($('#balances tbody'), [], BALANCE_COLS);
   renderRows($('#distribution tbody'), [], DIST_COLS);
+  renderRows($('#batch-plans tbody'), [], BATCH_PLAN_COLS);
+  renderRows($('#school-batches tbody'), [], schoolAggCols('batch'));
+  renderRows($('#school-categories tbody'), [], schoolAggCols('category'));
+  renderRows($('#school-plans tbody'), [], SCHOOL_PLAN_COLS);
   try {
     state.reasons = await API.get('/api/reasons');
   } catch (err) {
@@ -138,6 +176,8 @@ function renderStudent(data) {
   out.className = 'card';
   renderKV(out, {
     '考生': data.student_id,
+    '姓名': renderScore(data.name),
+    '初中': renderScore(data.junior_school),
     '总分': renderScore(data.score),
     '同分序号': renderScore(data.tie_seq),
     '是否录取': data.admitted ? '是' : '否',
@@ -183,10 +223,17 @@ async function loadPlan(page) {
   summary.className = 'card';
   renderKV(summary, {
     '计划': data.plan_id,
+    '学校': renderScore(data.school),
+    '批次': renderScore(data.batch),
+    '类别': renderCategory(data.category),
+    '控制线': renderScore(data.control_line),
     '名额': renderScore(data.quota),
+    '转入名额': renderScore(data.carry_in),
+    '有效计划数': renderScore(data.quota_total),
     '已录': renderScore(data.admitted_count),
     '余额': renderScore(data.remaining),
     '最低录取分': renderScore(data.min_score),
+    '最高录取分': renderScore(data.max_score),
     '末位考生': lastAdmittedText(data.last_admitted),
     '完成情况': Number(data.remaining) > 0 ? '未完成' : '已完成',
   });
@@ -200,7 +247,7 @@ async function loadPlan(page) {
   ]);
 
   const total = Number(data.total) || 0;
-  const pages = Math.max(1, Math.ceil(total / size));
+  const pages = Number(data.total_pages) || Math.max(1, Math.ceil(total / size));
   $('#page-info').textContent = `第 ${data.page} / ${pages} 页，共 ${total} 条`;
   $('#prev').disabled = data.page <= 1;
   $('#next').disabled = data.page >= pages;
@@ -217,11 +264,18 @@ async function loadBatchStats() {
   renderKV(out, {
     '批次': renderScore(data.batch),
     '计划数': renderScore(data.plan_count),
+    '有效计划数': renderScore(data.quota_total),
     '录取数': renderScore(data.admitted_count),
-    '完成率': formatRate(data.fill_rate),
-    '未录取': renderScore(data.unadmitted_count),
+    '完成率': formatRate(data.completion_rate, data.completion_rate_text),
+    '未完成名额': renderScore(data.unfilled_quota),
+    '剩余名额': renderScore(data.remaining_quota),
+    '未完成计划数': renderScore(data.unfilled_plans),
+    '填报人数': renderScore(data.volunteered_students),
+    '未录人数': renderScore(data.unadmitted_students),
     '最低录取分': renderScore(data.min_score),
+    '最高录取分': renderScore(data.max_score),
   });
+  renderRows($('#batch-plans tbody'), data.plans || [], BATCH_PLAN_COLS);
 }
 
 async function loadSchoolStats() {
@@ -230,16 +284,23 @@ async function loadSchoolStats() {
   if (!sid) throw new Error('请输入学校编号');
   const data = await API.get(`/api/stats/school/${encodeURIComponent(sid)}`, { run_id: state.runId });
   const out = $('#school-out');
+  const overall = data.overall || {};
   out.className = 'card';
   renderKV(out, {
-    '学校': `${data.school_id || ''} ${data.name || ''}`.trim(),
-    '计划数': renderScore(data.plan_count),
-    '录取数': renderScore(data.admitted_count),
-    '完成率': formatRate(data.fill_rate),
-    '未录取': renderScore(data.unadmitted_count),
-    '最低录取分': renderScore(data.min_score),
-    '末位考生': lastAdmittedText(data.last_admitted),
+    '学校': `${data.school_id || ''} ${data.school || ''}`.trim(),
+    '计划数': renderScore(overall.plan_count),
+    '有效计划数': renderScore(overall.quota_total),
+    '录取数': renderScore(overall.admitted_count),
+    '完成率': formatRate(overall.completion_rate, overall.completion_rate_text),
+    '未完成名额': renderScore(overall.unfilled_quota),
+    '剩余名额': renderScore(overall.remaining_quota),
+    '未完成计划数': renderScore(overall.unfilled_plans),
+    '最低录取分': renderScore(overall.min_score),
+    '最高录取分': renderScore(overall.max_score),
   });
+  renderRows($('#school-batches tbody'), data.by_batch || [], schoolAggCols('batch'));
+  renderRows($('#school-categories tbody'), data.by_category || [], schoolAggCols('category'));
+  renderRows($('#school-plans tbody'), data.plans || [], SCHOOL_PLAN_COLS);
 }
 
 async function loadDistribution() {
@@ -247,11 +308,21 @@ async function loadDistribution() {
   const batch = $('#stat-batch').value;
   const data = await API.get(`/api/distribution/${batch}`, { run_id: state.runId });
   renderDistribution($('#distribution tbody'), data);
+  const lines = data.lines || {};
+  $('#distribution-meta').textContent =
+    `共 ${data.total ?? 0} 人；最低 ${renderScore(data.min_score)}；最高 ${renderScore(data.max_score)}；` +
+    `控制线 L=${renderScore(lines.control_line)}；第一梯度线 G₁=${renderScore(lines.gradient_first)}；` +
+    `Δ=${renderScore(lines.gradient_delta)}`;
 }
 
 async function exportCsv() {
   if (!state.runId) throw new Error('请先在“运行控制”新建运行');
   await API.download('/api/export/admissions.csv', { run_id: state.runId });
+}
+
+async function exportStatsCsv() {
+  if (!state.runId) throw new Error('请先在“运行控制”新建运行');
+  await API.download('/api/export/stats.csv', { run_id: state.runId });
 }
 
 // ---------- 案例对比 ----------
@@ -260,6 +331,8 @@ function renderCaseSide(el, data, otherVolunteers) {
   el.className = 'case-side';
   renderKV(el, {
     '考生': data.student_id,
+    '姓名': renderScore(data.name),
+    '初中': renderScore(data.junior_school),
     '总分': renderScore(data.score),
     '是否录取': data.admitted ? '是' : '否',
     '录取批次': renderScore(data.batch),
@@ -300,6 +373,7 @@ $('#next').addEventListener('click', e => guard(e.currentTarget, () => loadPlan(
 $('#btn-stats').addEventListener('click', e => guard(e.currentTarget, loadBatchStats));
 $('#btn-dist').addEventListener('click', e => guard(e.currentTarget, loadDistribution));
 $('#btn-export').addEventListener('click', e => guard(e.currentTarget, exportCsv));
+$('#btn-export-stats').addEventListener('click', e => guard(e.currentTarget, exportStatsCsv));
 $('#btn-school').addEventListener('click', e => guard(e.currentTarget, loadSchoolStats));
 $('#btn-case').addEventListener('click', e => guard(e.currentTarget, loadCase));
 

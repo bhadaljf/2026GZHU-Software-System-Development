@@ -2,6 +2,7 @@
 data/large/*
 !data/large/.gitkeep
 export/*.csv
+export/*_口径说明.md
 test/report/*.json
 demo/*.mp4
 demo/*.mov

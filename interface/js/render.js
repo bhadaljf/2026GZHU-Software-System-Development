@@ -14,8 +14,13 @@ function renderReason(code, reasons) {
 }
 
 function renderStatus(status) {
-  const labels = { admitted: '录取', skipped: '跳过' };
+  const labels = { admitted: '录取', skipped: '跳过', pending: '未判定' };
   return labels[status] || status || '—';
+}
+
+function renderCategory(category) {
+  const labels = { self_recruit: '自主招生', quota: '名额分配', unified: '统招' };
+  return labels[category] || category || '—';
 }
 
 function renderRows(tbody, rows, cols) {
@@ -81,7 +86,8 @@ function renderDistribution(tbody, data) {
   ]);
 }
 
-function formatRate(v) {
+function formatRate(v, text) {
+  if (!isNil(text)) return String(text);
   if (isNil(v)) return '无';
   const n = Number(v);
   if (Number.isNaN(n)) return String(v);
@@ -112,7 +118,8 @@ function renderVolunteers(el, volunteers, reasons, other) {
       || peer.status !== v.status
       || peer.reason_code !== v.reason_code);
     p.className = changed ? 'vol changed' : 'vol';
-    p.textContent = `批次 ${v.batch} 志愿 ${v.seq}：${v.plan_id}　${renderStatus(v.status)}　${renderReason(v.reason_code, reasons)}`;
+    const reason = isNil(v.reason_text) ? renderReason(v.reason_code, reasons) : v.reason_text;
+    p.textContent = `批次 ${v.batch} 志愿 ${v.seq}：${v.plan_id}　${renderStatus(v.status)}　${reason}`;
     el.appendChild(p);
   }
 }

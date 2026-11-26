@@ -75,14 +75,26 @@
 
 ## 快速开始
 
-第 2 周补齐：环境要求、依赖安装、数据库初始化、启动命令、演示数据装载。
+环境、依赖、建库、数据装载与真实模式说明见 `deploy/README.md`。页面演示可直接用 mock 模式：
+
+```bash
+# Git Bash / macOS / Linux
+API_MOCK=1 python -m uvicorn src.api.main:app --reload --port 8000
+```
+
+```powershell
+# Windows PowerShell
+$env:API_MOCK="1"; python -m uvicorn src.api.main:app --reload --port 8000
+```
+
+浏览器打开 `http://127.0.0.1:8000`。mock 固定 `RUN20261121-01` / `RUN20261121-02`，案例对比页可直接使用。
 
 ## 状态
 
 | 里程碑 | 时间 | 状态 |
 | --- | --- | --- |
-| 阶段一 各自出首版 | 11.16—11.22 | 进行中 |
-| 阶段二 合并跑通与对账 | 11.23—11.29 | 未开始 |
+| 阶段一 各自出首版 | 11.16—11.22 | 已完成（PR #3—#7 已合入 dev） |
+| 阶段二 合并跑通与对账 | 11.23—11.29 | 进行中（4/6 号联调；2 号 large、write_results 待合入） |
 | 阶段三 验证、补漏与交付（含两周缓冲） | 11.30—12.13 | 未开始 |
 
 ## 分工与协作

@@ -163,10 +163,21 @@
             <button id="btn-stats" class="btn btn-primary">查询批次统计</button>
             <button id="btn-dist" class="btn btn-ghost">查询分数分布</button>
             <button id="btn-export" class="btn btn-ghost">导出录取 CSV</button>
+            <button id="btn-export-stats" class="btn btn-ghost">导出统计 CSV</button>
           </div>
         </div>
 
         <div id="stats-out" class="card empty-panel">选择批次后查询</div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>批次计划明细</h3></div>
+          <div class="table-wrap">
+            <table id="batch-plans">
+              <thead><tr><th>计划</th><th>学校</th><th>类别</th><th>有效计划</th><th>已录</th><th>余额</th><th>最低分</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
 
         <div class="panel">
           <div class="panel-head"><h3>分数分布</h3></div>
@@ -176,6 +187,7 @@
               <tbody></tbody>
             </table>
           </div>
+          <p id="distribution-meta" class="status-line"></p>
         </div>
 
         <div class="panel">
@@ -183,13 +195,43 @@
           <div class="toolbar">
             <label class="field grow">
               <span>学校编号</span>
-              <input id="school-id" placeholder="如 H-A">
+              <input id="school-id" placeholder="如 H01">
             </label>
             <button id="btn-school" class="btn btn-primary">查询学校统计</button>
           </div>
         </div>
 
         <div id="school-out" class="card empty-panel">输入学校编号后查询</div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>学校分批统计</h3></div>
+          <div class="table-wrap">
+            <table id="school-batches">
+              <thead><tr><th>批次</th><th>计划数</th><th>有效计划</th><th>已录</th><th>完成率</th><th>未完成名额</th><th>最低分</th><th>最高分</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>学校分类统计</h3></div>
+          <div class="table-wrap">
+            <table id="school-categories">
+              <thead><tr><th>类别</th><th>计划数</th><th>有效计划</th><th>已录</th><th>完成率</th><th>未完成名额</th><th>最低分</th><th>最高分</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h3>学校计划明细</h3></div>
+          <div class="table-wrap">
+            <table id="school-plans">
+              <thead><tr><th>计划</th><th>批次</th><th>类别</th><th>有效计划</th><th>已录</th><th>余额</th><th>最低分</th><th>末位考生</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       <section id="page-case" class="page">

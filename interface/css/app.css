@@ -131,7 +131,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .status-line { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
 
 /* 表格 */
-.table-wrap { overflow-x: auto; }
+.table-wrap { overflow: auto; max-height: 420px; }
+.table-wrap thead th { position: sticky; top: 0; z-index: 1; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; }
 th { background: #f9fafb; color: var(--muted); font-size: 13px; font-weight: 600; white-space: nowrap; }

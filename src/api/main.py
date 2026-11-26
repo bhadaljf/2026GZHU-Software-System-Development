@@ -1,16 +1,18 @@
 """接口网关（6 号）。
 
-职责：FastAPI 应用，只做参数校验与转发，不写投档逻辑，也不直连数据库。
-端点与入参见 docs/09_接口清单.md 第 3 节；返回结构见 docs/08 第 6 节。
+职责：FastAPI 应用，只做参数校验与转发，不写投档逻辑，也不直连业务表。
+端点与入参见 docs/09_接口清单.md 第 3 节；返回结构以 4 号 docs/04 为准。
 
 模式：
-- 默认真实模式：延迟导入 3 号/4 号模块，未就绪时返回 501，不静默回退假数据；
-- ``API_MOCK=1``：返回 src/api/mocks.py 的假数据，供页面独立联调（T-06）。
+- 默认真实模式：调用 4 号查询层并强制 ``mock=False``；库/模块未就绪返回 501/503，
+  不静默回退假数据；
+- ``API_MOCK=1``：返回 src/api/mocks.py 的假数据，供页面独立演示（含案例对比）。
 """
 
 from __future__ import annotations
 
 import os
+import sqlite3
 from importlib import import_module
 from pathlib import Path
 from typing import Optional
@@ -24,8 +26,11 @@ from src.api import mocks
 
 BASE = Path(__file__).resolve().parents[2]
 INTERFACE = BASE / "interface"
-DB_PATH = Path(os.getenv("SIM_DB") or (BASE / "data" / "sim.db"))
+DB_PATH = Path(os.getenv("SIM_DB") or os.getenv("ZKS_DB") or (BASE / "data" / "app.db"))
 OPERATOR = os.getenv("SIM_OPERATOR", "6号")
+
+# 4 号查询层默认读 ZKS_DB；让两边始终指向同一个库（SIM_DB 优先级更高）。
+os.environ["ZKS_DB"] = str(DB_PATH)
 
 # 真实模式下由 /execute 写入、/progress 读取；mock 模式不使用。
 _PROGRESS: dict[str, dict] = {}
@@ -57,6 +62,26 @@ def _need(module: str, name: str):
     return fn
 
 
+def _query(module: str, name: str, *args, **kwargs):
+    """调用 4 号查询函数：强制 mock=False，并把库错误转成 503。"""
+    fn = _need(module, name)
+    try:
+        return fn(*args, mock=False, **kwargs)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=f"数据库未就绪: {exc}") from exc
+    except sqlite3.Error as exc:
+        raise HTTPException(status_code=503, detail=f"数据库查询失败: {exc}") from exc
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=501, detail=f"依赖未实现: {module}.{name}") from exc
+
+
+def _ensure_sql(conn: sqlite3.Connection, path: Path) -> None:
+    """补齐 2 号 init_db 未执行的 DDL（run/log）。DDL 均为 IF NOT EXISTS。"""
+    if path.exists():
+        conn.executescript(path.read_text(encoding="utf-8"))
+        conn.commit()
+
+
 def _check_batch(batch: int) -> int:
     if batch not in (1, 2, 3, 4):
         raise HTTPException(status_code=400, detail="批次必须是 1—4")
@@ -72,6 +97,24 @@ def _check_batches(batches: list[int]) -> list[int]:
     return sorted(set(batches))
 
 
+def _balances(run_id: str, batches: list[int]) -> list[dict]:
+    """执行后用 4 号批次统计组装进度余额；失败时不影响主流程。"""
+    try:
+        fn = _need("src.query.stats", "get_batch_stats")
+        out = []
+        for batch in batches:
+            stats = fn(run_id, batch, mock=False)
+            out.append({
+                "batch": batch,
+                "quota": stats.get("quota_total"),
+                "admitted": stats.get("admitted_count"),
+                "remaining": stats.get("remaining_quota"),
+            })
+        return out
+    except Exception:
+        return []
+
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(INTERFACE / "index.html")
@@ -79,7 +122,7 @@ def index() -> FileResponse:
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"ok": True}
+    return {"ok": True, "mode": "mock" if mocks.MOCK else "real"}
 
 
 @app.post("/api/runs")
@@ -92,6 +135,7 @@ def create_run(req: RunRequest) -> dict:
 
     init_db = _need("src.store", "init_db")
     connect = _need("src.store", "connect")
+    ensure_run = _need("src.run_meta", "ensure_schema")
     create = _need("src.run_meta", "create_run")
     load_rules = _need("src.config", "load_rules")
 
@@ -100,9 +144,11 @@ def create_run(req: RunRequest) -> dict:
     data_version = f"{req.scale}-v1" + (f"-seed{seed}" if seed is not None else "")
 
     if not DB_PATH.exists():
-        init_db(str(DB_PATH))
+        init_db(str(DB_PATH), str(BASE / "db" / "schema.sql"))
     conn = connect(str(DB_PATH))
     try:
+        ensure_run(conn)
+        _ensure_sql(conn, BASE / "db" / "schema_log.sql")
         run_id = create(conn, req.year, rules, data_version, OPERATOR)
     finally:
         conn.close()
@@ -125,40 +171,50 @@ def execute(run_id: str, req: ExecuteRequest) -> dict:
 
     conn = connect(str(DB_PATH))
     try:
-        run = get_run(conn, run_id)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=f"运行不存在: {run_id}") from exc
+        try:
+            run = get_run(conn, run_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=f"运行不存在: {run_id}") from exc
+
+        scale = "large" if str(run.get("data_version", "")).startswith("large") else "small"
+        try:
+            dataset = load_dataset(str(BASE / "data" / scale))
+        except NotImplementedError as exc:
+            raise HTTPException(
+                status_code=501,
+                detail="2 号 load_dataset 尚未实现（等 2 号 W2 合入）",
+            ) from exc
+        rules = load_rules()
+
+        _PROGRESS[run_id] = {"stage": "running", "done": 0, "total": len(batches), "balances": []}
+        try:
+            out = run_batches(dataset, rules, run_id, batches)
+            try:
+                # 2 号 W2 的签名是 write_results(conn, run_out)
+                write_results(conn, out)
+            except TypeError:
+                # docs/09 首版签名兜底
+                write_results(run_id, out.results, out.logs)
+        except NotImplementedError as exc:
+            _PROGRESS[run_id] = {
+                "stage": "error", "done": 0, "total": len(batches),
+                "balances": [], "detail": str(exc),
+            }
+            raise HTTPException(status_code=501, detail=f"投档结果写入未实现: {exc}") from exc
+        except Exception as exc:
+            _PROGRESS[run_id] = {
+                "stage": "error", "done": 0, "total": len(batches),
+                "balances": [], "detail": str(exc),
+            }
+            raise
     finally:
         conn.close()
-
-    scale = "large" if str(run.get("data_version", "")).startswith("large") else "small"
-    dataset = load_dataset(str(BASE / "data" / scale))
-    rules = load_rules()
-
-    _PROGRESS[run_id] = {
-        "stage": "running",
-        "done": 0,
-        "total": len(batches),
-        "balances": [],
-    }
-    try:
-        out = run_batches(dataset, rules, run_id, batches)
-        write_results(run_id, out.results, out.logs)
-    except Exception as exc:  # 引擎异常要让页面看到，而不是伪装成完成
-        _PROGRESS[run_id] = {
-            "stage": "error",
-            "done": 0,
-            "total": len(batches),
-            "balances": [],
-            "detail": str(exc),
-        }
-        raise
 
     progress = {
         "stage": "done",
         "done": len(batches),
         "total": len(batches),
-        "balances": [],
+        "balances": _balances(run_id, batches),
     }
     _PROGRESS[run_id] = progress
     return {"run_id": run_id, "progress": progress}
@@ -177,16 +233,12 @@ def progress(run_id: str) -> dict:
 @app.get("/api/students/{sid}/result")
 def student_result(sid: str, run_id: str = Query(..., description="运行编号")) -> dict:
     if mocks.MOCK:
-        try:
-            return mocks.student_result(sid, run_id)
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail=f"考生不存在: {sid}") from exc
-
-    get_result = _need("src.query.student", "get_student_result")
-    try:
-        return get_result(run_id, sid)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=f"考生不存在或该运行无结果: {sid}") from exc
+        data = mocks.student_result(sid, run_id)
+    else:
+        data = _query("src.query.student", "get_student_result", run_id, sid)
+    if not data.get("exists", True):
+        raise HTTPException(status_code=404, detail=f"考生不存在或该运行无结果: {sid}")
+    return data
 
 
 @app.get("/api/plans/{pid}/admissions")
@@ -194,19 +246,18 @@ def plan_admissions(
     pid: str,
     run_id: str = Query(..., description="运行编号"),
     page: int = Query(1, ge=1),
-    size: int = Query(50, ge=1, le=200),
+    size: int = Query(100, ge=1, le=500),
 ) -> dict:
     if mocks.MOCK:
-        try:
-            return mocks.plan_admissions(pid, run_id, page, size)
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail=f"计划不存在: {pid}") from exc
-
-    get_admissions = _need("src.query.plan", "get_plan_admissions")
-    try:
-        return get_admissions(run_id, pid, page=page, size=size)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=f"计划不存在: {pid}") from exc
+        data = mocks.plan_admissions(pid, run_id, page, size)
+    else:
+        data = _query(
+            "src.query.plan", "get_plan_admissions",
+            run_id, pid, page=page, size=size,
+        )
+    if not data.get("exists", True):
+        raise HTTPException(status_code=404, detail=f"计划不存在: {pid}")
+    return data
 
 
 @app.get("/api/stats/batch/{batch}")
@@ -214,22 +265,18 @@ def batch_stats(batch: int, run_id: str = Query(..., description="运行编号")
     _check_batch(batch)
     if mocks.MOCK:
         return mocks.batch_stats(batch, run_id)
-    get_stats = _need("src.query.stats", "get_batch_stats")
-    return get_stats(run_id, batch)
+    return _query("src.query.stats", "get_batch_stats", run_id, batch)
 
 
 @app.get("/api/stats/school/{sid}")
 def school_stats(sid: str, run_id: str = Query(..., description="运行编号")) -> dict:
     if mocks.MOCK:
-        try:
-            return mocks.school_stats(sid, run_id)
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail=f"学校不存在: {sid}") from exc
-    get_stats = _need("src.query.stats", "get_school_stats")
-    try:
-        return get_stats(run_id, sid)
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=f"学校不存在: {sid}") from exc
+        data = mocks.school_stats(sid, run_id)
+    else:
+        data = _query("src.query.stats", "get_school_stats", run_id, sid)
+    if not data.get("exists", True):
+        raise HTTPException(status_code=404, detail=f"学校不存在: {sid}")
+    return data
 
 
 @app.get("/api/distribution/{batch}")
@@ -237,8 +284,7 @@ def distribution(batch: int, run_id: str = Query(..., description="运行编号"
     _check_batch(batch)
     if mocks.MOCK:
         return mocks.distribution(batch, run_id)
-    get_distribution = _need("src.query.stats", "get_score_distribution")
-    return get_distribution(run_id, batch)
+    return _query("src.query.stats", "get_score_distribution", run_id, batch)
 
 
 @app.get("/api/reasons")
@@ -248,26 +294,42 @@ def reasons() -> list[dict]:
     return _need("src.query.reasons", "all_reasons")()
 
 
+def _export_response(fn, run_id: str, prefix: str):
+    out_dir = BASE / "export"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"{prefix}_{run_id}.csv"
+    try:
+        path = fn(run_id, str(out_path), mock=False)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=f"数据库未就绪: {exc}") from exc
+    except sqlite3.Error as exc:
+        raise HTTPException(status_code=503, detail=f"数据库查询失败: {exc}") from exc
+    return FileResponse(Path(path), media_type="text/csv", filename=Path(path).name)
+
+
 @app.get("/api/export/admissions.csv")
 def export_admissions(run_id: str = Query(..., description="运行编号")):
     if mocks.MOCK:
         return Response(
             content=mocks.admissions_csv(run_id),
             media_type="text/csv",
-            headers={
-                "Content-Disposition": f'attachment; filename="admit_{run_id}.csv"',
-            },
+            headers={"Content-Disposition": f'attachment; filename="admit_{run_id}.csv"'},
         )
+    return _export_response(
+        _need("src.export.export_csv", "export_admissions"), run_id, "admit",
+    )
 
-    export = _need("src.export.export_csv", "export_admissions")
-    out_dir = BASE / "export"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"admit_{run_id}.csv"
-    path = export(run_id, str(out_path))
-    return FileResponse(
-        Path(path),
-        media_type="text/csv",
-        filename=Path(path).name,
+
+@app.get("/api/export/stats.csv")
+def export_stats(run_id: str = Query(..., description="运行编号")):
+    if mocks.MOCK:
+        return Response(
+            content=mocks.stats_csv(run_id),
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="stats_{run_id}.csv"'},
+        )
+    return _export_response(
+        _need("src.export.export_csv", "export_stats"), run_id, "stats",
     )
 
 

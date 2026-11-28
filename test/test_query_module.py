@@ -42,6 +42,8 @@ from src.query.perf import (  # noqa: E402
     index_ddl,
     missing_indexes,
     summary_ddl,
+    summary_delete_sql,
+    summary_insert_sql,
     timed,
 )
 from src.query.plan import get_plan_admissions  # noqa: E402
@@ -547,6 +549,50 @@ class DbSummaryTests(_DbCase):
 
     def test_33_未建索引时报出清单(self):
         self.assertEqual(len(missing_indexes(self.conn)), len(INDEX_DDL))
+
+
+class DbSummaryRefreshTests(_DbCase):
+    """验证 4 号交给 3 号的刷新 SQL：按 plan 全量重算，结果必须与在线聚合一致。"""
+
+    def _refresh(self):
+        writer = sqlite3.connect(str(self.db))
+        try:
+            writer.executescript(summary_ddl())
+            writer.execute(summary_delete_sql(), {"run_id": RUN})
+            writer.execute(summary_insert_sql(), {"run_id": RUN, "year": 2026})
+            writer.commit()
+        finally:
+            writer.close()
+
+    def test_45_刷新SQL生成全量汇总且与在线一致(self):
+        self._refresh()
+        r3 = self.q(get_batch_stats, RUN, 3)
+        self.assertEqual(r3["source"], "summary")
+        self.assertEqual(r3["plan_count"], 3)
+        self.assertEqual(r3["quota_total"], 4)
+        self.assertEqual(r3["admitted_count"], 3)
+        self.assertEqual(r3["min_score"], 690)
+        self.assertEqual(r3["max_score"], 715)
+        r4 = self.q(get_batch_stats, RUN, 4)
+        self.assertEqual(r4["source"], "summary")   # 未执行批次也有 0 值行
+        self.assertEqual(r4["quota_total"], 6)      # P-E4(2) + P-X4(3+1)
+        self.assertEqual(r4["admitted_count"], 0)
+
+    def test_46_刷新后末位考生与空值正确(self):
+        self._refresh()
+        h01 = self.q(get_school_stats, RUN, "H01")
+        self.assertEqual(h01["source"], "summary")
+        a3 = next(p for p in h01["plans"] if p["plan_id"] == "P-A3")
+        self.assertEqual(a3["last_admitted"]["student_id"], "S02")
+        self.assertEqual(a3["last_admitted"]["score"], 710)
+        c2 = next(p for p in h01["plans"] if p["plan_id"] == "P-C2")
+        self.assertEqual(c2["last_admitted"]["student_id"], "S03")
+        h03 = self.q(get_school_stats, RUN, "H03")
+        g3 = next(p for p in h03["plans"] if p["plan_id"] == "P-G3")
+        self.assertIsNone(g3["min_score"])
+        self.assertIsNone(g3["last_admitted"])
+        x4 = next(p for p in h03["plans"] if p["plan_id"] == "P-X4")
+        self.assertEqual(x4["quota_total"], 4)   # 3 + 转入 1
 
 
 class DbBrokenTests(_DbCase):

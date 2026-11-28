@@ -101,6 +101,54 @@ def _covers_all_plans(cur: sqlite3.Cursor, run_id: str, summary_rows: int) -> bo
     return total == summary_rows
 
 
+# 刷新用 SQL：两句分开执行（命名参数，3 号在 store.write_results 末尾调用）
+DELETE_SQL = f"DELETE FROM {SUMMARY_TABLE} WHERE run_id = :run_id"
+
+INSERT_SQL = f"""INSERT INTO {SUMMARY_TABLE} (
+    run_id, plan_id, batch, category, school_id, school_name,
+    quota, carry_in, quota_total, admitted_count, remaining, min_score, max_score,
+    last_student_id, last_score, last_tie_seq, last_volunteer_no, last_admit_order)
+SELECT :run_id, p.plan_id, p.batch, p.category, p.high_school_id, h.name,
+       p.quota,
+       COALESCE(c.amt, 0),
+       p.quota + COALESCE(c.amt, 0),
+       COALESCE(a.cnt, 0),
+       COALESCE(p.remaining, p.quota + COALESCE(c.amt, 0) - COALESCE(a.cnt, 0)),
+       a.min_score, a.max_score,
+       l.student_id, l.score, l.tie_seq, l.volunteer_no, l.admit_order
+FROM plan p
+LEFT JOIN high_school h ON h.school_id = p.high_school_id
+LEFT JOIN (SELECT to_plan_id, SUM(amount) AS amt FROM carry_log
+           WHERE run_id = :run_id GROUP BY to_plan_id) c
+       ON c.to_plan_id = p.plan_id
+LEFT JOIN (SELECT plan_id, COUNT(*) AS cnt, MIN(score) AS min_score, MAX(score) AS max_score
+           FROM admit_result WHERE run_id = :run_id GROUP BY plan_id) a
+       ON a.plan_id = p.plan_id
+LEFT JOIN (SELECT r1.plan_id, r1.student_id, r1.score, r1.tie_seq,
+                  r1.volunteer_no, r1.admit_order
+           FROM admit_result r1
+           JOIN (SELECT plan_id, MAX(admit_order) AS mo FROM admit_result
+                 WHERE run_id = :run_id GROUP BY plan_id) m
+             ON m.plan_id = r1.plan_id AND m.mo = r1.admit_order
+           WHERE r1.run_id = :run_id) l
+       ON l.plan_id = p.plan_id
+WHERE p.year = :year"""
+
+
+def summary_delete_sql() -> str:
+    """刷新第一步：清掉该 run 的旧汇总行（交 3 号，4 号不写库）。"""
+    return DELETE_SQL
+
+
+def summary_insert_sql() -> str:
+    """刷新第二步：按 plan 全量重算并写入（命名参数 `run_id`、`year`）。
+
+    覆盖全部计划（该年度每一条 plan 一行），所以未执行批次也有 `admitted_count = 0` 的行，
+    满足 `read_plan_summary()` 的完整性校验；无人录取的 `min_score` / `last_*` 为 NULL。
+    """
+    return INSERT_SQL
+
+
 def summary_ddl() -> str:
     """汇总表 DDL 文本（交 2 号执行，4 号不建表）。
 

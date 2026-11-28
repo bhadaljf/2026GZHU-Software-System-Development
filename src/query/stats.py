@@ -18,9 +18,11 @@ import sqlite3
 try:
     from src.query import open_cursor, use_mock
     from src.query import mockdata as _mock
+    from src.query.perf import read_plan_summary
 except ImportError:
     from query import open_cursor, use_mock
     from query import mockdata as _mock
+    from query.perf import read_plan_summary
 
 
 # ---------------------------------------------------------------- 批次统计
@@ -31,13 +33,14 @@ def get_batch_stats(run_id: str, batch: int, *, conn=None, mock=None) -> dict:
     if use_mock(mock):
         items = _mock_plan_items(batch=batch)
         volunteered, unadmitted = _mock_volunteer_counts(batch)
+        source = "mock"
     else:
         with open_cursor(conn) as cur:
-            items = _plan_items(cur, run_id, batch=batch)
+            items, source = _plan_items(cur, run_id, batch=batch, with_source=True)
             volunteered = _count_volunteered(cur, batch)
             unadmitted = _count_unadmitted_in_batch(cur, run_id, batch)
 
-    out = {"run_id": run_id, "batch": batch}
+    out = {"run_id": run_id, "batch": batch, "source": source}
     out.update(_aggregate(items))
     out["volunteered_students"] = volunteered
     out["unadmitted_students"] = unadmitted
@@ -57,9 +60,10 @@ def get_school_stats(run_id: str, school_id: str, *, conn=None, mock=None) -> di
     if use_mock(mock):
         items = _mock_plan_items(school_id=school_id)
         school_name = next((s["name"] for s in _mock.SCHOOLS if s["school_id"] == school_id), None)
+        source = "mock"
     else:
         with open_cursor(conn) as cur:
-            items = _plan_items(cur, run_id, school_id=school_id)
+            items, source = _plan_items(cur, run_id, school_id=school_id, with_source=True)
             row = cur.execute("SELECT name FROM high_school WHERE school_id = ?",
                               (school_id,)).fetchone()
             school_name = row["name"] if row else None
@@ -70,6 +74,7 @@ def get_school_stats(run_id: str, school_id: str, *, conn=None, mock=None) -> di
         "school_id": school_id,
         "school": school_name,
         "exists": school_name is not None,
+        "source": source,
         "overall": overall,
         "by_batch": [dict(batch=b, **_aggregate(v)) for b, v in
                      sorted(_group(items, "batch").items())],
@@ -96,12 +101,14 @@ def get_score_distribution(run_id: str, batch: int, bucket_size: int = 10,
     if use_mock(mock):
         scores = [r["score"] for r in _mock.RESULTS if r["batch"] == batch]
         lines = _mock.RULES
+        source = "mock"
     else:
         with open_cursor(conn) as cur:
             scores = [r["score"] for r in cur.execute(
                 "SELECT score FROM admit_result WHERE run_id = ? AND batch = ?",
                 (run_id, batch)).fetchall()]
             lines = _read_rules()
+        source = "online"
 
     buckets: dict[int, int] = {}
     for s in scores:
@@ -111,6 +118,7 @@ def get_score_distribution(run_id: str, batch: int, bucket_size: int = 10,
     return {
         "run_id": run_id,
         "batch": batch,
+        "source": source,
         "bucket_size": bucket_size,
         "buckets": [
             {"label": f"{low}-{low + bucket_size - 1}", "low": low,
@@ -131,8 +139,28 @@ def get_score_distribution(run_id: str, batch: int, bucket_size: int = 10,
 # ---------------------------------------------------------------- 内部实现
 
 def _plan_items(cur: sqlite3.Cursor, run_id: str, batch: int | None = None,
-                school_id: str | None = None) -> list[dict]:
-    """取计划 + 该计划的已录汇总 + 转入名额，拼成统一的行结构。"""
+                school_id: str | None = None, *, with_source: bool = False):
+    """取计划 + 该计划的已录汇总 + 转入名额，拼成统一的行结构。
+
+    第二阶段：先读汇总表 `plan_summary`（见 `src/query/perf.py`），命中就直接用，
+    不再在线聚合 15 万条明细；汇总表还没建（2 号未交付）时自动回退在线聚合，行为不变。
+    `with_source=True` 时多返回一个来源标记：`summary` / `online`。
+    """
+    summary = read_plan_summary(cur, run_id)
+    if summary is not None:
+        items = summary
+        if batch is not None:
+            items = [i for i in items if i["batch"] == batch]
+        if school_id is not None:
+            items = [i for i in items if i["school_id"] == school_id]
+        # 汇总表可能只刷了部分批次/部分学校：过滤后为空就回退在线聚合，
+        # 否则会把“该批有 2 个计划”静默报成 0 个计划，是不可接受的错数据。
+        if (batch is not None or school_id is not None) and not items:
+            items = None
+        else:
+            items = sorted(items, key=lambda i: (i["batch"], i["plan_id"]))
+            return (items, "summary") if with_source else items
+
     sql = ("SELECT p.plan_id, p.batch, p.category, p.quota, p.remaining, "
            "       p.high_school_id, h.name AS school_name "
            "FROM plan p LEFT JOIN high_school h ON h.school_id = p.high_school_id")
@@ -176,7 +204,7 @@ def _plan_items(cur: sqlite3.Cursor, run_id: str, batch: int | None = None,
             "max_score": r["max_score"] if r else None,
             "last_admitted": last.get(p["plan_id"]),
         })
-    return items
+    return (items, "online") if with_source else items
 
 
 def _carry_map(cur: sqlite3.Cursor, run_id: str) -> dict[str, int]:
